@@ -8,13 +8,19 @@
   },
   "scripts": {
     "build": "nuxt build",
+    "postbuild": "tsx server/db/run-migrations.ts",
     "dev": "nuxt dev",
+    "dev:with-migrations": "tsx server/db/run-migrations.ts && nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "migrate": "tsx server/db/run-migrations.ts"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.5.3",
+    "@vercel/postgres": "^0.10.0",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
     "lucide-vue-next": "^0.441.0",
     "nuxt": "^3.12.4",
     "nuxt-vue3-google-signin": "^0.0.11",
@@ -22,6 +28,9 @@
     "vue": "latest"
   },
   "devDependencies": {
-    "@nuxtjs/tailwindcss": "^6.12.1"
+    "@nuxtjs/tailwindcss": "^6.12.1",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.6.0",
+    "tsx": "^4.19.1"
   }
 }

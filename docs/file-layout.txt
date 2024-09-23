@@ -1,0 +1,40 @@
+|-- components
+|   |-- AppFooter.vue
+|   |-- AppHeader.vue
+|-- docs
+|   |-- file-layout.txt
+|   |-- storage.md
+|-- layouts
+|   |-- default.vue
+|-- middleware
+|   |-- auth.global.ts
+|-- pages
+|   |-- home.vue
+|   |-- index.vue
+|   |-- login.vue
+|   |-- register.vue
+|-- public
+|   |-- about.txt
+|   |-- robots.txt
+|-- server
+|   |-- api
+|   |   |-- auth.ts
+|   |   |-- users.ts
+|   |-- db
+|   |   |-- migrations
+|   |   |-- run-migrations.ts
+|   |-- utils
+|   |   |-- db.ts
+|   |-- tsconfig.json
+|-- stores
+|   |-- auth.ts
+|-- types
+|   |-- interfaces.ts
+|-- utils
+|-- .env
+|-- app.vue
+|-- nuxt.config.ts
+|-- package-lock.json
+|-- package.json
+|-- README.md
+|-- tsconfig.json

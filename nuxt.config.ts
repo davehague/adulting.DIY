@@ -1,18 +1,17 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2024-09-20',
+  compatibilityDate: "2024-09-20",
   devtools: { enabled: true },
   devServer: {
     https: {
-      key: './localhost-key.pem',
-      cert: './localhost.pem',
-    }
+      key: "./localhost-key.pem",
+      cert: "./localhost.pem",
+    },
   },
-  modules: [
-    '@pinia/nuxt', '@nuxtjs/tailwindcss', 'nuxt-vue3-google-signin',
-  ],
+  modules: ["@pinia/nuxt", "@nuxtjs/tailwindcss", "nuxt-vue3-google-signin"],
   googleSignIn: {
-    clientId: '438128158573-pbbsttfbp8e7o81nmtavl5stbv49vmap.apps.googleusercontent.com',
+    clientId:
+      "438128158573-pbbsttfbp8e7o81nmtavl5stbv49vmap.apps.googleusercontent.com",
   },
   app: {
     head: {
@@ -46,4 +45,4 @@ export default defineNuxtConfig({
       ],
     },
   },
-} as any)
+} as any);
