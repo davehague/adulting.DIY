@@ -12,13 +12,11 @@
 |   |-- home.vue
 |   |-- index.vue
 |   |-- login.vue
-|   |-- register.vue
 |-- public
 |   |-- about.txt
 |   |-- robots.txt
 |-- server
 |   |-- api
-|   |   |-- auth.ts
 |   |   |-- users.ts
 |   |-- db
 |   |   |-- migrations

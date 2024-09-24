@@ -8,7 +8,19 @@ export default defineNuxtConfig({
       cert: "./localhost.pem",
     },
   },
-  modules: ["@pinia/nuxt", "@nuxtjs/tailwindcss", "nuxt-vue3-google-signin"],
+  modules: [
+    "@pinia/nuxt",
+    "@nuxtjs/tailwindcss",
+    "nuxt-vue3-google-signin",
+    "pinia-plugin-persistedstate/nuxt",
+  ],
+  piniaPluginPersistedstate: {
+    storage: "cookies", 
+    cookieOptions: {
+      sameSite: "strict", 
+      maxAge: 604800, // Expiration time in seconds (e.g., 7 days)
+    },
+  },
   googleSignIn: {
     clientId:
       "438128158573-pbbsttfbp8e7o81nmtavl5stbv49vmap.apps.googleusercontent.com",

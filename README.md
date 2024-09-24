@@ -10,23 +10,28 @@ This project is a multi-tenant task management system built with Vue.js, Nuxt 3,
 - Task dependencies for non-recurring tasks
 - Flexible notification system for upcoming and overdue tasks
 - Soft deletion for exception handling in recurring tasks
+- Google Sign-In authentication
+- Persistent authentication state across page reloads and server-side rendering
 
 ## Tech Stack
 
 - Vue.js (latest version)
 - Nuxt 3
 - Pinia for state management
+- Pinia Plugin Persisted State for persistent storage
 - Tailwind CSS for utility-first styling
 - Lucide Vue Next for icons
 - Vercel Postgres for primary data storage
 - Vercel KV (optional) for caching
 - Vercel Edge Config (optional) for global settings
+- Google Sign-In for authentication
 
 ## Prerequisites
 
 - Node.js (version compatible with Nuxt 3)
 - npm or yarn
 - Vercel account for deploying and managing Vercel Postgres
+- Google Cloud Platform account for Google Sign-In
 
 ## Getting Started
 
@@ -75,7 +80,7 @@ This project is a multi-tenant task management system built with Vue.js, Nuxt 3,
    npm run dev:with-migrations
    ```
 
-6. Open your browser and navigate to `http://localhost:3000`
+6. Open your browser and navigate to `https://localhost:3000`
 
 ## Project Structure
 
@@ -89,10 +94,11 @@ This project is a multi-tenant task management system built with Vue.js, Nuxt 3,
 - `utils/`: Utility functions, including database client setup
 - `app.vue`: Main application component
 - `nuxt.config.ts`: Nuxt configuration file
+- `middleware/`: Nuxt middleware, including authentication middleware
 
 ## Key Configuration Files
 
-- `nuxt.config.ts`: Nuxt 3 configuration, including modules and app metadata
+- `nuxt.config.ts`: Nuxt 3 configuration, including modules, app metadata, and authentication settings
 - `package.json`: Project dependencies and scripts
 - `tsconfig.json`: TypeScript configuration
 - `tailwind.config.js`: Tailwind CSS configuration (if customized)
@@ -104,6 +110,14 @@ This project uses Tailwind CSS for styling. Customize your Tailwind setup by mod
 ## Icons
 
 [Lucide](https://lucide.dev/) is included for icons. Use these icons in your Vue components as needed.
+
+## Authentication
+
+This project uses Google Sign-In for authentication. The authentication flow is managed using Pinia and Pinia Plugin Persisted State for persistent storage across page reloads and server-side rendering.
+
+## State Management and Persistence
+
+This project uses Pinia for state management and Pinia Plugin Persisted State for persistent storage.
 
 ## Database Setup and Management
 
