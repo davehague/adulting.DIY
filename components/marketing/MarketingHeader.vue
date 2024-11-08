@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { MenuIcon, XIcon } from 'lucide-vue-next'
-import { useAuthStore } from '~/stores/auth'
+import { useAuthStore } from '~/stores/authStore'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 

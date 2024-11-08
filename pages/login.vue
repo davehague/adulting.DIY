@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { GoogleSignInButton, type CredentialResponse } from "vue3-google-signin";
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '~/stores/authStore';
 import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();

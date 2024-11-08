@@ -44,222 +44,148 @@ definePageMeta({
   middleware: ['auth']
 })
 
+import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTaskStore } from '@/stores/taskStore'
+import { useOccurrenceStore } from '@/stores/occurrenceStore'
+import { useCategoryStore } from '@/stores/categoryStore'
+import { useAuthStore } from '@/stores/authStore'
+import { type Task, type Occurrence, type Category } from '@/types/interfaces'
 
-import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useTaskOperations } from '@/composables/useTaskOperations'
-import { useAuthStore } from '@/stores/auth'
-import TaskList from '@/components/app/TaskList.vue'
-import TaskModal from '@/components/app/TaskModal.vue'
-import OccurrenceModal from '@/components/app/OccurrenceModal.vue'
-import type { Task, Category, Occurrence } from '@/types/interfaces'
-import { ApiClient } from '@/services/ApiClient'
-
-const route = useRoute()
-const api = new ApiClient()
+// Store initialization
+const taskStore = useTaskStore()
+const occurrenceStore = useOccurrenceStore()
+const categoryStore = useCategoryStore()
 const authStore = useAuthStore()
-const { isLoading, error, handleTaskSave, handleTaskDelete } = useTaskOperations()
 
-const currentFilter = ref(route.query.filter?.toString() || 'all')
-const tasks = ref<Task[]>([])
-const categories = ref<Category[]>([])
-const occurrences = ref<Occurrence[]>([])
+// Destructure store properties with storeToRefs to maintain reactivity
+const { tasks, loading: tasksLoading, error: taskError } = storeToRefs(taskStore)
+const { occurrences, loading: occurrencesLoading } = storeToRefs(occurrenceStore)
+const { categories, loading: categoriesLoading } = storeToRefs(categoryStore)
+
+// Local state
+const currentFilter = ref('all')
 const isTaskModalOpen = ref(false)
 const isOccurrenceModalOpen = ref(false)
+const currentTask = ref<Task | null>(null)
+const currentOccurrence = ref<Occurrence | null>(null)
 
-// Default task template
-const defaultTask: Task = {
-  id: 0,
-  organization_id: authStore.user?.organization_id ?? 0,
-  title: '',
-  description: '',
-  created_by: authStore.user?.id ?? 0,
-  is_recurring: false,
-  recurrence_type: undefined,
-  recurrence_interval: undefined,
-  last_occurrence: new Date(),
-  category_id: undefined,
-  notification_settings: undefined,
-  created_at: new Date(),
-  updated_at: new Date()
-}
+// Computed properties
+const isLoading = computed(() =>
+  tasksLoading.value || occurrencesLoading.value || categoriesLoading.value
+)
 
-const currentTask = ref<Task>({ ...defaultTask })
+const error = computed(() => taskError.value)
 
-const currentOccurrence = ref<Occurrence>({
-  id: 0,
-  task_id: 0,
-  status: 'Not Started',
-  due_date: new Date(),
-  assigned_to: undefined,
-  executed_by: undefined,
-  completed_at: undefined,
-  is_deleted: false,
-  created_at: new Date(),
-  updated_at: new Date()
-})
-
-// Helper function to get start of day
-function getStartOfDay(date: Date): number {
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  return start.getTime()
-}
-
-// Helper function for safe date comparison
-function isSameDay(date1: Date | undefined, date2: Date): boolean {
-  if (!date1) return false
-  return getStartOfDay(date1) === getStartOfDay(date2)
-}
-
-function isBeforeDay(date1: Date | undefined, date2: Date): boolean {
-  if (!date1) return false
-  return getStartOfDay(date1) < getStartOfDay(date2)
-}
-
-function isAfterDay(date1: Date | undefined, date2: Date): boolean {
-  if (!date1) return false
-  return getStartOfDay(date1) > getStartOfDay(date2)
-}
-
-// Computed tasks based on filter with safe date handling
 const filteredTasks = computed(() => {
   const today = new Date()
-  const nextWeek = new Date(today)
-  nextWeek.setDate(today.getDate() + 7)
+  today.setHours(0, 0, 0, 0)
 
   switch (currentFilter.value) {
     case 'today':
       return tasks.value.filter(task => {
-        const occurrenceDueToday = occurrences.value.find(
-          occ => occ.task_id === task.id &&
-            isSameDay(occ.due_date, today) &&
-            occ.status !== 'Completed'
+        const occurrence = occurrences.value.find(o =>
+          o.task_id === task.id &&
+          o.status === 'Upcoming' &&
+          new Date(o.due_date).setHours(0, 0, 0, 0) === today.getTime()
         )
-        return occurrenceDueToday !== undefined
+        return occurrence !== undefined
       })
     case 'overdue':
-      return tasks.value.filter(task => {
-        const overdueOccurrence = occurrences.value.find(
-          occ => occ.task_id === task.id &&
-            isBeforeDay(occ.due_date, today) &&
-            occ.status !== 'Completed'
-        )
-        return overdueOccurrence !== undefined
-      })
+      return tasks.value.filter(task =>
+        taskStore.getTaskState(task.id) === 'Overdue'
+      )
     case 'upcoming':
-      return tasks.value.filter(task => {
-        const upcomingOccurrence = occurrences.value.find(
-          occ => occ.task_id === task.id &&
-            isAfterDay(occ.due_date, today) &&
-            new Date(occ.due_date!) <= nextWeek &&
-            occ.status !== 'Completed'
+      return tasks.value.filter(task =>
+        occurrences.value.some(o =>
+          o.task_id === task.id &&
+          o.status === 'Upcoming'
         )
-        return upcomingOccurrence !== undefined
-      })
+      )
     case 'assigned':
-      return tasks.value.filter(task => {
-        const assignedOccurrence = occurrences.value.find(
-          occ => occ.task_id === task.id &&
-            occ.assigned_to === authStore.user?.id &&
-            occ.status !== 'Completed'
+      // Assuming you have access to current user ID
+      const currentUserId = authStore.user?.id
+      if (!currentUserId) return []
+      
+      return tasks.value.filter(task =>
+        occurrences.value.some(o =>
+          o.task_id === task.id &&
+          o.assigned_to === currentUserId
         )
-        return assignedOccurrence !== undefined
-      })
+      )
     default:
-      return tasks.value
+      return tasks.value.filter(task => !task.is_deleted)
   }
 })
 
-// Fetch data on mount
-onMounted(async () => {
-  await Promise.all([
-    fetchTasks(),
-    fetchCategories(),
-    fetchOccurrences()
-  ])
-})
-
-// Data fetching functions using ApiClient
-async function fetchTasks() {
+// Methods
+const fetchData = async () => {
   try {
-    tasks.value = await api.getTasks()
-  } catch (error) {
-    console.error('Error fetching tasks:', error)
+    await Promise.all([
+      taskStore.fetchTasks(),
+      occurrenceStore.fetchOccurrences(),
+      categoryStore.fetchCategories()
+    ])
+  } catch (e) {
+    console.error('Error fetching data:', e)
   }
 }
 
-async function fetchCategories() {
-  try {
-    categories.value = await api.get<Category[]>('/api/categories')
-  } catch (error) {
-    console.error('Error fetching categories:', error)
-  }
-}
-
-async function fetchOccurrences() {
-  try {
-    occurrences.value = await api.get<Occurrence[]>('/api/occurrences')
-  } catch (error) {
-    console.error('Error fetching occurrences:', error)
-  }
-}
-
-// Modal management
-function openTaskModal(task?: Task) {
-  if (task) {
-    currentTask.value = { ...task }
-  } else {
-    currentTask.value = { ...defaultTask }
-  }
+const openTaskModal = (task?: Task) => {
+  currentTask.value = task || null
   isTaskModalOpen.value = true
 }
 
-function closeTaskModal() {
+const closeTaskModal = () => {
+  currentTask.value = null
   isTaskModalOpen.value = false
 }
 
-function openOccurrenceModal(occurrence: Occurrence) {
-  currentOccurrence.value = { ...occurrence }
+const openOccurrenceModal = (occurrence: Occurrence) => {
+  currentOccurrence.value = occurrence
   isOccurrenceModalOpen.value = true
 }
 
-function closeOccurrenceModal() {
+const closeOccurrenceModal = () => {
+  currentOccurrence.value = null
   isOccurrenceModalOpen.value = false
 }
 
-// Task operations using TaskService through composable
-async function saveTask(task: Task) {
-  const result = await handleTaskSave(task)
-  if (result.success) {
-    await Promise.all([
-      fetchTasks(),
-      fetchOccurrences()
-    ])
-    closeTaskModal()
-  }
-}
-
-async function deleteTask(id: number) {
-  if (confirm('Are you sure you want to delete this task? This will also delete all associated occurrences.')) {
-    const result = await handleTaskDelete(id)
-    if (result.success) {
-      await Promise.all([
-        fetchTasks(),
-        fetchOccurrences()
-      ])
-    }
-  }
-}
-
-// Occurrence operations
-async function saveOccurrence(occurrence: Occurrence) {
+const saveTask = async (taskData: Partial<Task>) => {
   try {
-    await api.put<Occurrence>('/api/occurrences', occurrence)
-    await fetchOccurrences()
-    closeOccurrenceModal()
-  } catch (error) {
-    console.error('Error saving occurrence:', error)
+    if (currentTask.value) {
+      await taskStore.updateTask(currentTask.value.id, taskData)
+    } else {
+      await taskStore.createTask(taskData)
+    }
+    closeTaskModal()
+  } catch (e) {
+    console.error('Error saving task:', e)
   }
 }
+
+const saveOccurrence = async (occurrenceData: Partial<Occurrence>) => {
+  try {
+    if (currentOccurrence.value) {
+      await occurrenceStore.updateOccurrence(
+        currentOccurrence.value.id,
+        occurrenceData
+      )
+    }
+    closeOccurrenceModal()
+  } catch (e) {
+    console.error('Error saving occurrence:', e)
+  }
+}
+
+const deleteTask = async (taskId: number) => {
+  try {
+    await taskStore.deleteTask(taskId)
+  } catch (e) {
+    console.error('Error deleting task:', e)
+  }
+}
+
+// Fetch data on component mount
+fetchData()
 </script>
