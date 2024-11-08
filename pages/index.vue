@@ -4,7 +4,7 @@
     <header class="container mx-auto px-6 py-16 text-center">
       <h1 class="text-5xl md:text-6xl font-bold mb-6">Manage Tasks Like a Pro</h1>
       <p class="text-xl md:text-2xl mb-8">Adulting.diy: The multi-tenant task management system for efficient organizations</p>
-      <a href="/home" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 inline-block">Get Started</a>
+      <a href="/dashboard" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 inline-block">Get Started</a>
     </header>
 
     <!-- Features Section -->
@@ -63,6 +63,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  layout: 'marketing'
+})
+
 import { CheckCircleIcon, ClockIcon, UsersIcon, TagIcon, BellIcon, LayersIcon } from 'lucide-vue-next'
 
 const features = [

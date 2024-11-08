@@ -5,12 +5,7 @@
       <div class="hidden md:flex space-x-6">
         <a v-for="item in navItems" :key="item.id" :href="`#${item.id}`" class="hover:text-blue-400 transition duration-300">{{ item.text }}</a>
       </div>
-      <div v-if="isAuthenticated" class="flex items-center space-x-4">
-        <img :src="user?.picture" alt="Profile" class="w-8 h-8 rounded-full">
-        <span>{{ user?.name }}</span>
-        <button @click="logout" class="text-red-500 hover:text-red-700">Logout</button>
-      </div>
-      <NuxtLink v-else to="/login" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">Login</NuxtLink>
+      <NuxtLink to="/login" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">Login</NuxtLink>
       <button @click="toggleMobileMenu" class="md:hidden focus:outline-none">
         <MenuIcon v-if="!isMobileMenuOpen" class="h-6 w-6" />
         <XIcon v-else class="h-6 w-6" />

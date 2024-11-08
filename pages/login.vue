@@ -41,8 +41,8 @@ const handleLoginSuccess = async (response: CredentialResponse) => {
     authStore.setUser(userData);
     authStore.setAccessToken(credential);
 
-    // Navigate to home page
-    router.push('/home');
+    // Navigate to dashboard page
+    router.push('/dashboard');
   } catch (error) {
     console.error("Failed to fetch or create user data", error);
     // You might want to show an error message to the user here

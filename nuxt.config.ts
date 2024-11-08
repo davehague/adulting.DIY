@@ -15,9 +15,9 @@ export default defineNuxtConfig({
     "pinia-plugin-persistedstate/nuxt",
   ],
   piniaPluginPersistedstate: {
-    storage: "cookies", 
+    storage: "cookies",
     cookieOptions: {
-      sameSite: "strict", 
+      sameSite: "strict",
       maxAge: 604800, // Expiration time in seconds (e.g., 7 days)
     },
   },
@@ -26,6 +26,7 @@ export default defineNuxtConfig({
       "438128158573-pbbsttfbp8e7o81nmtavl5stbv49vmap.apps.googleusercontent.com",
   },
   app: {
+    pageTransition: { name: "page", mode: "out-in" },
     head: {
       title: "Adulting.DIY",
       meta: [
@@ -57,4 +58,12 @@ export default defineNuxtConfig({
       ],
     },
   },
+  plugins: [
+    '~/plugins/auth.ts'
+  ],
+  routeRules: {
+    '/': { prerender: true },
+    '/login': { prerender: true },
+    '/dashhboard': { middleware: 'auth' }
+  }
 } as any);
