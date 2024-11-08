@@ -9,7 +9,6 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // Getters
   const getOccurrenceById = computed(() => {
     return (id: number): Occurrence | undefined =>
       occurrences.value.find((occurrence) => occurrence.id === id);
@@ -38,7 +37,6 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
       );
   });
 
-  // Actions
   const fetchOccurrences = async () => {
     loading.value = true;
     try {
@@ -51,10 +49,36 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
     }
   };
 
-  const createOccurrence = async (occurrenceData: Partial<Occurrence>) => {
+  const getOccurrenceByIdFromApi = async (id: number) => {
+    loading.value = true;
+    try {
+      const response = await fetch(`/api/occurrences?id=${id}`);
+      const occurrence = await response.json();
+      const index = occurrences.value.findIndex((o) => o.id === id);
+      if (index !== -1) {
+        occurrences.value[index] = occurrence;
+      } else {
+        occurrences.value.push(occurrence);
+      }
+      return occurrence;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "An error occurred";
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  interface CreateOccurrenceData {
+    task_id: number;
+    status: "Upcoming" | "Overdue" | "Completed" | "Deleted";
+    due_date: Date;
+    assigned_to?: number;
+  }
+
+  const createOccurrence = async (occurrenceData: CreateOccurrenceData) => {
     if (
       occurrenceData.status === "Upcoming" &&
-      occurrenceData.due_date &&
       new Date(occurrenceData.due_date) < new Date()
     ) {
       throw new Error(
@@ -67,7 +91,12 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
       const response = await fetch("/api/occurrences", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(occurrenceData),
+        body: JSON.stringify({
+          ...occurrenceData,
+          is_deleted: false,
+          completed_at: null,
+          executed_by: null,
+        }),
       });
       const newOccurrence = await response.json();
       occurrences.value.push(newOccurrence);
@@ -82,15 +111,24 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
 
   const calculateNextDueDate = (task: Task, lastDueDate: Date): Date => {
     const dueDate = new Date(lastDueDate);
-    switch (task.recurrence_type) {
-      case "Fixed":
-        // Add interval based on recurrence_interval value
-        // This is a simplified example
-        dueDate.setMonth(dueDate.getMonth() + 1);
-        break;
-      case "Variable":
-        // Implement variable recurrence logic
-        break;
+    if (task.recurrence_type === "Fixed" && task.recurrence_interval) {
+      const [amount, unit] = task.recurrence_interval.split(" ");
+      const numAmount = parseInt(amount, 10);
+
+      switch (unit.toLowerCase()) {
+        case "days":
+          dueDate.setDate(dueDate.getDate() + numAmount);
+          break;
+        case "weeks":
+          dueDate.setDate(dueDate.getDate() + numAmount * 7);
+          break;
+        case "months":
+          dueDate.setMonth(dueDate.getMonth() + numAmount);
+          break;
+        case "years":
+          dueDate.setFullYear(dueDate.getFullYear() + numAmount);
+          break;
+      }
     }
     return dueDate;
   };
@@ -108,10 +146,13 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
 
     loading.value = true;
     try {
-      const response = await fetch(`/api/occurrences/${id}`, {
+      const response = await fetch(`/api/occurrences`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({
+          ...updates,
+          id,
+        }),
       });
       const updatedOccurrence = await response.json();
       const index = occurrences.value.findIndex(
@@ -121,8 +162,8 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
         occurrences.value[index] = updatedOccurrence;
       }
 
-      // If marking as deleted and task is recurring, create new occurrence
-      if (updates.status === "Deleted") {
+      // Handle recurring task logic
+      if (updates.status === "Completed" || updates.is_deleted) {
         const occurrence = getOccurrenceById.value(id);
         if (occurrence) {
           const taskStore = useTaskStore();
@@ -149,17 +190,15 @@ export const useOccurrenceStore = defineStore("occurrences", () => {
   };
 
   return {
-    // State
     occurrences,
     loading,
     error,
-    // Getters
     getOccurrenceById,
     getOccurrencesByTaskId,
     upcomingOccurrences,
     overdueOccurrences,
-    // Actions
     fetchOccurrences,
+    getOccurrenceByIdFromApi,
     createOccurrence,
     updateOccurrence,
     calculateNextDueDate,

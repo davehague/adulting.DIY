@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event);
 
   // GET all categories
-  if (method === 'GET' && !query.id) {
+  if (method === "GET" && !query.id) {
     try {
       const result = await sql`SELECT * FROM categories`;
       return result.rows;
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // GET category by ID
-  if (method === 'GET' && query.id) {
+  if (method === "GET" && query.id) {
     const id = parseInt(query.id as string, 10);
     if (isNaN(id)) {
       throw createError({
@@ -47,12 +47,14 @@ export default defineEventHandler(async (event) => {
   }
 
   // POST new category
-  if (method === 'POST') {
+  if (method === "POST") {
     const body = await readBody(event);
     try {
       const result = await sql`
         INSERT INTO categories (organization_id, name, options)
-        VALUES (${body.organization_id}, ${body.name}, ${JSON.stringify(body.options)})
+        VALUES (${body.organization_id}, ${body.name}, ${JSON.stringify(
+        body.options
+      )})
         RETURNING *
       `;
       return result.rows[0];
@@ -66,7 +68,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // PUT (update) category
-  if (method === 'PUT') {
+  if (method === "PUT") {
     const body = await readBody(event);
     const id = parseInt(body.id as string, 10);
     if (isNaN(id)) {

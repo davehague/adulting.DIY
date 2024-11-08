@@ -1,4 +1,3 @@
-// pages/tasks.vue
 <template>
   <div class="min-h-screen bg-gray-100">
     <header class="bg-white shadow">
@@ -52,6 +51,10 @@ import { useCategoryStore } from '@/stores/categoryStore'
 import { useAuthStore } from '@/stores/authStore'
 import { type Task, type Occurrence, type Category } from '@/types/interfaces'
 
+import TaskModal from '@/components/app/TaskModal.vue'
+import OccurrenceModal from '~/components/app/OccurrenceModal.vue';
+import TaskList from '~/components/app/TaskList.vue';
+
 // Store initialization
 const taskStore = useTaskStore()
 const occurrenceStore = useOccurrenceStore()
@@ -67,8 +70,8 @@ const { categories, loading: categoriesLoading } = storeToRefs(categoryStore)
 const currentFilter = ref('all')
 const isTaskModalOpen = ref(false)
 const isOccurrenceModalOpen = ref(false)
-const currentTask = ref<Task | null>(null)
-const currentOccurrence = ref<Occurrence | null>(null)
+const currentTask = ref<Task>({} as Task)
+const currentOccurrence = ref<Occurrence>({} as Occurrence)
 
 // Computed properties
 const isLoading = computed(() =>
@@ -106,7 +109,7 @@ const filteredTasks = computed(() => {
       // Assuming you have access to current user ID
       const currentUserId = authStore.user?.id
       if (!currentUserId) return []
-      
+
       return tasks.value.filter(task =>
         occurrences.value.some(o =>
           o.task_id === task.id &&
@@ -131,13 +134,13 @@ const fetchData = async () => {
   }
 }
 
-const openTaskModal = (task?: Task) => {
+const openTaskModal = (task: Task) => {
   currentTask.value = task || null
   isTaskModalOpen.value = true
 }
 
 const closeTaskModal = () => {
-  currentTask.value = null
+  currentTask.value = {} as Task
   isTaskModalOpen.value = false
 }
 
@@ -147,16 +150,33 @@ const openOccurrenceModal = (occurrence: Occurrence) => {
 }
 
 const closeOccurrenceModal = () => {
-  currentOccurrence.value = null
+  currentOccurrence.value = {} as Occurrence
   isOccurrenceModalOpen.value = false
 }
 
 const saveTask = async (taskData: Partial<Task>) => {
   try {
     if (currentTask.value) {
+      console.log('Updating task:', taskData)
       await taskStore.updateTask(currentTask.value.id, taskData)
     } else {
-      await taskStore.createTask(taskData)
+      if (!taskData.organization_id || !taskData.title || !taskData.created_by) {
+        throw new Error('Missing required fields for task creation')
+      }
+
+      const createTaskData = {
+        organization_id: taskData.organization_id,
+        title: taskData.title,
+        created_by: taskData.created_by,
+        description: taskData.description,
+        is_recurring: taskData.is_recurring ?? false,
+        recurrence_type: taskData.recurrence_type,
+        recurrence_interval: taskData.recurrence_interval,
+        category_id: taskData.category_id,
+        notification_settings: taskData.notification_settings,
+      }
+
+      await taskStore.createTask(createTaskData)
     }
     closeTaskModal()
   } catch (e) {
@@ -179,6 +199,10 @@ const saveOccurrence = async (occurrenceData: Partial<Occurrence>) => {
 }
 
 const deleteTask = async (taskId: number) => {
+  if (!window.confirm('Are you sure you want to delete this task?')) {
+    return
+  }
+
   try {
     await taskStore.deleteTask(taskId)
   } catch (e) {
@@ -186,6 +210,7 @@ const deleteTask = async (taskId: number) => {
   }
 }
 
-// Fetch data on component mount
-fetchData()
+onMounted(async () => {
+  await fetchData()
+})
 </script>

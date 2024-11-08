@@ -1,14 +1,14 @@
 // stores/useCategoryStore.ts
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { type Category } from "@/types/interfaces";
+import { type Category, type CategoryOption } from "@/types/interfaces";
 
 export const useCategoryStore = defineStore("categories", () => {
   const categories = ref<Category[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // Getters
+  // Getters remain the same
   const getCategoryById = computed(() => {
     return (id: number): Category | undefined =>
       categories.value.find((category) => category.id === id);
@@ -25,11 +25,14 @@ export const useCategoryStore = defineStore("categories", () => {
     }));
   });
 
-  // Actions
+  // Actions - matching taskStore pattern exactly
   const fetchCategories = async () => {
     loading.value = true;
     try {
       const response = await fetch("/api/categories");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       categories.value = await response.json();
     } catch (e) {
       error.value = e instanceof Error ? e.message : "An error occurred";
@@ -38,14 +41,49 @@ export const useCategoryStore = defineStore("categories", () => {
     }
   };
 
-  const createCategory = async (categoryData: Partial<Category>) => {
+  const getCategoryByIdFromApi = async (id: number) => {
+    loading.value = true;
+    try {
+      const response = await fetch(`/api/categories?id=${id}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const category = await response.json();
+      const index = categories.value.findIndex((c) => c.id === id);
+      if (index !== -1) {
+        categories.value[index] = category;
+      } else {
+        categories.value.push(category);
+      }
+      return category;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "An error occurred";
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  interface CreateCategoryData {
+    organization_id: number;
+    name: string;
+    options: CategoryOption[];
+  }
+
+  const createCategory = async (categoryData: CreateCategoryData) => {
     loading.value = true;
     try {
       const response = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(categoryData),
+        body: JSON.stringify({
+          ...categoryData,
+          options: JSON.stringify(categoryData.options),
+        }),
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const newCategory = await response.json();
       categories.value.push(newCategory);
       return newCategory;
@@ -60,11 +98,20 @@ export const useCategoryStore = defineStore("categories", () => {
   const updateCategory = async (id: number, updates: Partial<Category>) => {
     loading.value = true;
     try {
-      const response = await fetch(`/api/categories/${id}`, {
+      const response = await fetch(`/api/categories`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({
+          ...updates,
+          id,
+          options: updates.options
+            ? JSON.stringify(updates.options)
+            : undefined,
+        }),
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const updatedCategory = await response.json();
       const index = categories.value.findIndex(
         (category) => category.id === id
@@ -81,39 +128,16 @@ export const useCategoryStore = defineStore("categories", () => {
     }
   };
 
-  const deleteCategory = async (id: number) => {
-    loading.value = true;
-    try {
-      await fetch(`/api/categories/${id}`, {
-        method: "DELETE",
-      });
-      const index = categories.value.findIndex(
-        (category) => category.id === id
-      );
-      if (index !== -1) {
-        categories.value.splice(index, 1);
-      }
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : "An error occurred";
-      throw e;
-    } finally {
-      loading.value = false;
-    }
-  };
-
   return {
-    // State
     categories,
     loading,
     error,
-    // Getters
     getCategoryById,
     activeCategories,
     categoryOptions,
-    // Actions
     fetchCategories,
+    getCategoryByIdFromApi,
     createCategory,
     updateCategory,
-    deleteCategory,
   };
 });

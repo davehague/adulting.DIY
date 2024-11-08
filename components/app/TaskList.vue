@@ -3,7 +3,7 @@
   <div class="px-4 py-6 sm:px-0">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-semibold text-gray-900"></h2>
-      <button @click="$emit('openTaskModal')"
+      <button @click="$emit('openTaskModal', {} as Task)"
         class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
         Add Task
       </button>
@@ -47,7 +47,7 @@
                 <span :class="[
                   'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
                   occurrence.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                    occurrence.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                    occurrence.status === 'Overdue' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-red-100 text-red-800'
                 ]">
                   {{ occurrence.status }}
@@ -74,7 +74,7 @@ const props = defineProps<{
 }>()
 
 defineEmits<{
-  (e: 'openTaskModal', task?: Task): void
+  (e: 'openTaskModal', task: Task): void
   (e: 'openOccurrenceModal', occurrence: Occurrence): void
   (e: 'deleteTask', id: number): void
 }>()

@@ -24,12 +24,6 @@
               </select>
             </div>
             <div class="mb-4">
-              <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
-              <textarea name="notes" id="notes" v-model="occurrence.notes" rows="3"
-                class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                placeholder="Add any notes about this occurrence..."></textarea>
-            </div>
-            <div class="mb-4">
               <label for="assigned_to" class="block text-sm font-medium text-gray-700">Assigned To</label>
               <input type="text" name="assigned_to" id="assigned_to" v-model="occurrence.assigned_to"
                 class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
