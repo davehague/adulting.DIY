@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event);
 
   // GET all tasks
-  if (method === 'GET' && !query.id) {
+  if (method === "GET" && !query.id) {
     try {
       const result = await sql`SELECT * FROM tasks`;
       return result.rows;
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // GET task by ID
-  if (method === 'GET' && query.id) {
+  if (method === "GET" && query.id) {
     const id = parseInt(query.id as string, 10);
     if (isNaN(id)) {
       throw createError({
@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // POST new task
-  if (method === 'POST') {
+  if (method === "POST") {
     const body = await readBody(event);
     try {
       const result = await sql`
@@ -55,8 +55,12 @@ export default defineEventHandler(async (event) => {
           organization_id, title, description, created_by, is_recurring, 
           recurrence_type, recurrence_interval, category_id, notification_settings
         ) VALUES (
-          ${body.organization_id}, ${body.title}, ${body.description}, ${body.created_by}, 
-          ${body.is_recurring}, ${body.recurrence_type}, ${body.recurrence_interval}, 
+          ${body.organization_id}, ${body.title}, ${body.description}, ${
+        body.created_by
+      }, 
+          ${body.is_recurring}, ${body.recurrence_type}, ${
+        body.recurrence_interval
+      }, 
           ${body.category_id}, ${JSON.stringify(body.notification_settings)}
         ) RETURNING *
       `;
@@ -71,7 +75,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // PUT (update) task
-  if (method === 'PUT') {
+  if (method === "PUT") {
     const body = await readBody(event);
     try {
       const result = await sql`
@@ -96,6 +100,40 @@ export default defineEventHandler(async (event) => {
       return result.rows[0];
     } catch (error) {
       console.error("Error updating task:", error);
+      throw createError({
+        statusCode: 500,
+        statusMessage: "Internal server error",
+      });
+    }
+  }
+
+  // DELETE task
+  if (method === "DELETE") {
+    const id = parseInt(query.id as string, 10);
+    if (isNaN(id)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "Invalid ID",
+      });
+    }
+    try {
+      const result = await sql`
+        DELETE FROM tasks 
+        WHERE id = ${id}
+        RETURNING *
+      `;
+      if (result.rowCount === 0) {
+        throw createError({
+          statusCode: 404,
+          statusMessage: "Task not found",
+        });
+      }
+      return {
+        message: "Task deleted successfully",
+        deletedTask: result.rows[0],
+      };
+    } catch (error) {
+      console.error("Error deleting task:", error);
       throw createError({
         statusCode: 500,
         statusMessage: "Internal server error",

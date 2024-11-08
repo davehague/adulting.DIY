@@ -20,69 +20,60 @@
     </header>
     <main>
       <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <TaskList 
-          :tasks="filteredTasks" 
-          :categories="categories" 
-          :occurrences="occurrences"
-          @open-task-modal="openTaskModal"
-          @open-occurrence-modal="openOccurrenceModal"
-          @delete-task="deleteTask"
-        />
+        <div v-if="error" class="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
+          {{ error }}
+        </div>
 
-        <TaskModal
-          v-if="isTaskModalOpen"
-          :task="currentTask"
-          :categories="categories"
-          @save="saveTask"
-          @close="closeTaskModal"
-        />
+        <TaskList :tasks="filteredTasks" :categories="categories" :occurrences="occurrences" :loading="isLoading"
+          @open-task-modal="openTaskModal" @open-occurrence-modal="openOccurrenceModal" @delete-task="deleteTask" />
 
-        <OccurrenceModal
-          v-if="isOccurrenceModalOpen"
-          :occurrence="currentOccurrence"
-          @save="saveOccurrence"
-          @close="closeOccurrenceModal"
-        />
+        <TaskModal v-if="isTaskModalOpen" :task="currentTask" :categories="categories" :loading="isLoading"
+          @save="saveTask" @close="closeTaskModal" />
+
+        <OccurrenceModal v-if="isOccurrenceModalOpen" :occurrence="currentOccurrence" :loading="isLoading"
+          @save="saveOccurrence" @close="closeOccurrenceModal" />
       </div>
     </main>
   </div>
 </template>
 
+// pages/tasks.vue
 <script setup lang="ts">
 definePageMeta({
   layout: 'app',
   middleware: ['auth']
 })
 
+
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useTaskOperations } from '@/composables/useTaskOperations'
+import { useAuthStore } from '@/stores/auth'
 import TaskList from '@/components/app/TaskList.vue'
 import TaskModal from '@/components/app/TaskModal.vue'
 import OccurrenceModal from '@/components/app/OccurrenceModal.vue'
 import type { Task, Category, Occurrence } from '@/types/interfaces'
+import { ApiClient } from '@/services/ApiClient'
 
 const route = useRoute()
+const api = new ApiClient()
+const authStore = useAuthStore()
+const { isLoading, error, handleTaskSave, handleTaskDelete } = useTaskOperations()
+
 const currentFilter = ref(route.query.filter?.toString() || 'all')
 const tasks = ref<Task[]>([])
 const categories = ref<Category[]>([])
 const occurrences = ref<Occurrence[]>([])
 const isTaskModalOpen = ref(false)
 const isOccurrenceModalOpen = ref(false)
-const currentUserId = 1 // Mock current user ID
 
-// Handle route query changes
-watch(() => route.query.filter, (newFilter) => {
-  if (newFilter) {
-    currentFilter.value = newFilter.toString()
-  }
-})
-
-const currentTask = ref<Task>({
+// Default task template
+const defaultTask: Task = {
   id: 0,
-  organization_id: 1,
+  organization_id: authStore.user?.organization_id ?? 0,
   title: '',
   description: '',
-  created_by: 1,
+  created_by: authStore.user?.id ?? 0,
   is_recurring: false,
   recurrence_type: undefined,
   recurrence_interval: undefined,
@@ -91,7 +82,9 @@ const currentTask = ref<Task>({
   notification_settings: undefined,
   created_at: new Date(),
   updated_at: new Date()
-})
+}
+
+const currentTask = ref<Task>({ ...defaultTask })
 
 const currentOccurrence = ref<Occurrence>({
   id: 0,
@@ -101,15 +94,37 @@ const currentOccurrence = ref<Occurrence>({
   assigned_to: undefined,
   executed_by: undefined,
   completed_at: undefined,
-  notes: '',
   is_deleted: false,
   created_at: new Date(),
   updated_at: new Date()
 })
 
+// Helper function to get start of day
+function getStartOfDay(date: Date): number {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  return start.getTime()
+}
+
+// Helper function for safe date comparison
+function isSameDay(date1: Date | undefined, date2: Date): boolean {
+  if (!date1) return false
+  return getStartOfDay(date1) === getStartOfDay(date2)
+}
+
+function isBeforeDay(date1: Date | undefined, date2: Date): boolean {
+  if (!date1) return false
+  return getStartOfDay(date1) < getStartOfDay(date2)
+}
+
+function isAfterDay(date1: Date | undefined, date2: Date): boolean {
+  if (!date1) return false
+  return getStartOfDay(date1) > getStartOfDay(date2)
+}
+
+// Computed tasks based on filter with safe date handling
 const filteredTasks = computed(() => {
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
   const nextWeek = new Date(today)
   nextWeek.setDate(today.getDate() + 7)
 
@@ -117,37 +132,37 @@ const filteredTasks = computed(() => {
     case 'today':
       return tasks.value.filter(task => {
         const occurrenceDueToday = occurrences.value.find(
-          occ => occ.task_id === task.id && 
-          new Date(occ.due_date).setHours(0, 0, 0, 0) === today.getTime() &&
-          occ.status !== 'Completed'
+          occ => occ.task_id === task.id &&
+            isSameDay(occ.due_date, today) &&
+            occ.status !== 'Completed'
         )
         return occurrenceDueToday !== undefined
       })
     case 'overdue':
       return tasks.value.filter(task => {
         const overdueOccurrence = occurrences.value.find(
-          occ => occ.task_id === task.id && 
-          new Date(occ.due_date) < today &&
-          occ.status !== 'Completed'
+          occ => occ.task_id === task.id &&
+            isBeforeDay(occ.due_date, today) &&
+            occ.status !== 'Completed'
         )
         return overdueOccurrence !== undefined
       })
     case 'upcoming':
       return tasks.value.filter(task => {
         const upcomingOccurrence = occurrences.value.find(
-          occ => occ.task_id === task.id && 
-          new Date(occ.due_date) > today &&
-          new Date(occ.due_date) <= nextWeek &&
-          occ.status !== 'Completed'
+          occ => occ.task_id === task.id &&
+            isAfterDay(occ.due_date, today) &&
+            new Date(occ.due_date!) <= nextWeek &&
+            occ.status !== 'Completed'
         )
         return upcomingOccurrence !== undefined
       })
     case 'assigned':
       return tasks.value.filter(task => {
         const assignedOccurrence = occurrences.value.find(
-          occ => occ.task_id === task.id && 
-          occ.assigned_to === currentUserId &&
-          occ.status !== 'Completed'
+          occ => occ.task_id === task.id &&
+            occ.assigned_to === authStore.user?.id &&
+            occ.status !== 'Completed'
         )
         return assignedOccurrence !== undefined
       })
@@ -156,6 +171,7 @@ const filteredTasks = computed(() => {
   }
 })
 
+// Fetch data on mount
 onMounted(async () => {
   await Promise.all([
     fetchTasks(),
@@ -164,10 +180,10 @@ onMounted(async () => {
   ])
 })
 
+// Data fetching functions using ApiClient
 async function fetchTasks() {
   try {
-    const response = await fetch('/api/tasks')
-    tasks.value = await response.json()
+    tasks.value = await api.getTasks()
   } catch (error) {
     console.error('Error fetching tasks:', error)
   }
@@ -175,8 +191,7 @@ async function fetchTasks() {
 
 async function fetchCategories() {
   try {
-    const response = await fetch('/api/categories')
-    categories.value = await response.json()
+    categories.value = await api.get<Category[]>('/api/categories')
   } catch (error) {
     console.error('Error fetching categories:', error)
   }
@@ -184,32 +199,18 @@ async function fetchCategories() {
 
 async function fetchOccurrences() {
   try {
-    const response = await fetch('/api/occurrences')
-    occurrences.value = await response.json()
+    occurrences.value = await api.get<Occurrence[]>('/api/occurrences')
   } catch (error) {
     console.error('Error fetching occurrences:', error)
   }
 }
 
+// Modal management
 function openTaskModal(task?: Task) {
   if (task) {
     currentTask.value = { ...task }
   } else {
-    currentTask.value = {
-      id: 0,
-      organization_id: 1,
-      title: '',
-      description: '',
-      created_by: 1,
-      is_recurring: false,
-      recurrence_type: undefined,
-      recurrence_interval: undefined,
-      last_occurrence: new Date(),
-      category_id: undefined,
-      notification_settings: undefined,
-      created_at: new Date(),
-      updated_at: new Date()
-    }
+    currentTask.value = { ...defaultTask }
   }
   isTaskModalOpen.value = true
 }
@@ -227,68 +228,38 @@ function closeOccurrenceModal() {
   isOccurrenceModalOpen.value = false
 }
 
+// Task operations using TaskService through composable
 async function saveTask(task: Task) {
-  try {
-    const method = task.id ? 'PUT' : 'POST'
-    const response = await fetch('/api/tasks', {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(task),
-    })
-
-    if (response.ok) {
-      await fetchTasks()
-      closeTaskModal()
-    } else {
-      console.error('Error saving task:', await response.text())
-    }
-  } catch (error) {
-    console.error('Error saving task:', error)
-  }
-}
-
-async function saveOccurrence(occurrence: Occurrence) {
-  try {
-    const method = occurrence.id ? 'PUT' : 'POST'
-    const response = await fetch('/api/occurrences', {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(occurrence),
-    })
-
-    if (response.ok) {
-      await fetchOccurrences()
-      closeOccurrenceModal()
-    } else {
-      console.error('Error saving occurrence:', await response.text())
-    }
-  } catch (error) {
-    console.error('Error saving occurrence:', error)
+  const result = await handleTaskSave(task)
+  if (result.success) {
+    await Promise.all([
+      fetchTasks(),
+      fetchOccurrences()
+    ])
+    closeTaskModal()
   }
 }
 
 async function deleteTask(id: number) {
   if (confirm('Are you sure you want to delete this task? This will also delete all associated occurrences.')) {
-    try {
-      const response = await fetch(`/api/tasks?id=${id}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        await Promise.all([
-          fetchTasks(),
-          fetchOccurrences()
-        ])
-      } else {
-        console.error('Error deleting task:', await response.text())
-      }
-    } catch (error) {
-      console.error('Error deleting task:', error)
+    const result = await handleTaskDelete(id)
+    if (result.success) {
+      await Promise.all([
+        fetchTasks(),
+        fetchOccurrences()
+      ])
     }
+  }
+}
+
+// Occurrence operations
+async function saveOccurrence(occurrence: Occurrence) {
+  try {
+    await api.put<Occurrence>('/api/occurrences', occurrence)
+    await fetchOccurrences()
+    closeOccurrenceModal()
+  } catch (error) {
+    console.error('Error saving occurrence:', error)
   }
 }
 </script>
