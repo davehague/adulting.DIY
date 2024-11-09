@@ -70,7 +70,7 @@ const { categories, loading: categoriesLoading } = storeToRefs(categoryStore)
 const currentFilter = ref('all')
 const isTaskModalOpen = ref(false)
 const isOccurrenceModalOpen = ref(false)
-const currentTask = ref<Task>({} as Task)
+const currentTask = ref<Task | null>(null)
 const currentOccurrence = ref<Occurrence>({} as Occurrence)
 
 // Computed properties
@@ -134,13 +134,13 @@ const fetchData = async () => {
   }
 }
 
-const openTaskModal = (task: Task) => {
-  currentTask.value = task || null
+const openTaskModal = (task?: Task) => {
+  currentTask.value = task || null  // If no task provided, set to null for new task
   isTaskModalOpen.value = true
 }
 
 const closeTaskModal = () => {
-  currentTask.value = {} as Task
+  currentTask.value = null
   isTaskModalOpen.value = false
 }
 
@@ -154,22 +154,27 @@ const closeOccurrenceModal = () => {
   isOccurrenceModalOpen.value = false
 }
 
-const saveTask = async (taskData: Partial<Task>) => {
+const saveTask = async (taskData: Task) => {
   try {
-    if (currentTask.value) {
+    const existingTask = taskStore.getTaskById(taskData.id)
+    
+    if (existingTask) {
+      // Updating existing task
       console.log('Updating task:', taskData)
-      await taskStore.updateTask(currentTask.value.id, taskData)
+      await taskStore.updateTask(taskData.id, taskData)
     } else {
-      if (!taskData.organization_id || !taskData.title || !taskData.created_by) {
-        throw new Error('Missing required fields for task creation')
+      // Creating new task
+      const user = useAuthStore().user;
+      if (!user || !user.organization_id || !user.id) {
+        throw new Error('User or organization ID is missing');
       }
 
       const createTaskData = {
-        organization_id: taskData.organization_id,
+        organization_id: user.organization_id,
         title: taskData.title,
-        created_by: taskData.created_by,
+        created_by: user.id,
         description: taskData.description,
-        is_recurring: taskData.is_recurring ?? false,
+        is_recurring: taskData.is_recurring || false,
         recurrence_type: taskData.recurrence_type,
         recurrence_interval: taskData.recurrence_interval,
         category_id: taskData.category_id,
